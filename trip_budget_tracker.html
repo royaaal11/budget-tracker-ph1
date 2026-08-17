@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trip Budget Tracker</title>
+<style>
+  :root{
+    --ink: #1f2a24;
+    --paper: #f6f2ea;
+    --panel: #fffdf8;
+    --line: #d8cdb8;
+    --accent: #2f6f5e;
+    --accent-dark: #1e4d40;
+    --warn: #b5482f;
+    --gold: #c9a24b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: 'Courier New', ui-monospace, monospace;
+    background: var(--paper);
+    color: var(--ink);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(0,0,0,0.05) 1px, transparent 0);
+    background-size: 22px 22px;
+    padding: 28px 16px 60px;
+  }
+
+  .ticket{
+    max-width: 560px;
+    margin: 0 auto;
+    background: var(--panel);
+    border: 1.5px solid var(--ink);
+    border-radius: 10px;
+    box-shadow: 0 10px 0 -4px rgba(31,42,36,0.08), 0 14px 24px rgba(31,42,36,0.12);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .stub-row{
+    display:flex;
+    border-bottom: 2px dashed var(--line);
+  }
+  .stub-row::before, .stub-row::after{ content:""; }
+
+  header{
+    padding: 22px 24px 18px;
+    border-bottom: 2px dashed var(--line);
+    position: relative;
+  }
+  .eyebrow{
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent-dark);
+    display:flex;
+    justify-content: space-between;
+  }
+  h1{
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 26px;
+    margin: 8px 0 2px;
+    letter-spacing: 0.5px;
+  }
+  .sub{
+    font-size: 12px;
+    color: #5b6b62;
+  }
+  .perf{
+    position:absolute;
+    top:0; bottom:0;
+    width: 16px;
+  }
+
+  .balance-block{
+    padding: 20px 24px;
+    background: var(--accent-dark);
+    color: var(--paper);
+    text-align:center;
+    position: relative;
+  }
+  .balance-label{
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    opacity: 0.75;
+  }
+  .balance-amount{
+    font-family: Georgia, serif;
+    font-size: 44px;
+    margin: 4px 0 6px;
+    font-weight: 700;
+  }
+  .balance-amount.negative{ color: #f2b6a4; }
+  .bar-track{
+    height: 8px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 10px auto 0;
+    max-width: 320px;
+  }
+  .bar-fill{
+    height: 100%;
+    background: var(--gold);
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .bar-fill.over{ background: var(--warn); }
+  .stat-row{
+    display:flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 10px;
+    font-size: 11px;
+    opacity: 0.85;
+  }
+
+  .setup{
+    padding: 18px 24px;
+    border-bottom: 2px dashed var(--line);
+    display:flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .field{ flex: 1; min-width: 140px; }
+  label{
+    display:block;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #5b6b62;
+    margin-bottom: 4px;
+  }
+  input, select{
+    width: 100%;
+    padding: 9px 10px;
+    border: 1.5px solid var(--ink);
+    border-radius: 5px;
+    background: var(--paper);
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  input:focus, select:focus{ outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  button{
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    border-radius: 5px;
+    border: 1.5px solid var(--ink);
+    background: var(--accent);
+    color: var(--paper);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:hover{ background: var(--accent-dark); }
+  button.ghost{
+    background: transparent;
+    color: var(--ink);
+    border-style: dashed;
+  }
+  button.ghost:hover{ background: rgba(0,0,0,0.05); }
+  button:disabled{ opacity: 0.45; cursor: not-allowed; }
+
+  .add-row{
+    padding: 18px 24px;
+    border-bottom: 2px dashed var(--line);
+    display:flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .log{
+    padding: 16px 24px 22px;
+  }
+  .log-title{
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #5b6b62;
+    margin-bottom: 10px;
+    display:flex;
+    justify-content: space-between;
+  }
+  .entries{
+    display:flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .entry{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    font-size: 13px;
+    gap: 10px;
+  }
+  .entry .tag{
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent-dark);
+    background: rgba(47,111,94,0.12);
+    padding: 2px 7px;
+    border-radius: 10px;
+    flex-shrink:0;
+  }
+  .entry .desc{ flex: 1; min-width: 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .entry .amt{ font-weight:bold; flex-shrink:0; }
+  .entry .del{
+    background: none;
+    border: none;
+    color: var(--warn);
+    cursor: pointer;
+    font-size: 15px;
+    padding: 0 2px;
+    flex-shrink:0;
+  }
+  .empty{
+    text-align:center;
+    font-size: 12px;
+    color: #8a8577;
+    padding: 20px 0;
+    font-style: italic;
+  }
+
+  footer{
+    text-align:center;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #8a8577;
+    padding: 14px 0 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="ticket">
+  <header>
+    <div class="eyebrow"><span>Boarding · Personal Finance</span><span id="dateStamp"></span></div>
+    <h1>Trip Budget Tracker</h1>
+    <div class="sub">Set your total, log every spend, watch what's left.</div>
+  </header>
+
+  <div class="balance-block">
+    <div class="balance-label">Remaining</div>
+    <div class="balance-amount" id="balanceAmount">₱0.00</div>
+    <div class="bar-track"><div class="bar-fill" id="barFill"></div></div>
+    <div class="stat-row">
+      <span>Budget: <strong id="statBudget">₱0.00</strong></span>
+      <span>Spent: <strong id="statSpent">₱0.00</strong></span>
+    </div>
+  </div>
+
+  <div class="setup">
+    <div class="field">
+      <label for="budgetInput">Total budget (₱)</label>
+      <input type="number" id="budgetInput" placeholder="e.g. 10000" min="0" step="0.01">
+    </div>
+    <button id="setBudgetBtn">Set Budget</button>
+  </div>
+
+  <div class="add-row">
+    <div class="field" style="flex:2; min-width:160px;">
+      <label for="descInput">Expense</label>
+      <input type="text" id="descInput" placeholder="e.g. Tricycle fare">
+    </div>
+    <div class="field">
+      <label for="catInput">Category</label>
+      <select id="catInput">
+        <option>Transport</option>
+        <option>Food</option>
+        <option>Lodging</option>
+        <option>Tickets</option>
+        <option>Shopping</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="amtInput">Amount (₱)</label>
+      <input type="number" id="amtInput" placeholder="0.00" min="0" step="0.01">
+    </div>
+    <button id="addBtn">Add</button>
+  </div>
+
+  <div class="log">
+    <div class="log-title"><span>Expense Log</span><span id="countStamp">0 entries</span></div>
+    <button class="ghost" id="resetBtn" style="margin-bottom:10px; font-size:10px; padding:6px 10px;">Reset all data</button>
+    <div class="entries" id="entries">
+      <div class="empty">No expenses logged yet — add your first one above.</div>
+    </div>
+  </div>
+
+  <footer>Have a great trip this Saturday ✈</footer>
+</div>
+
+<script>
+  let budget = 0;
+  let expenses = []; // { id, desc, cat, amt }
+  const API_URL = window.location.origin;
+  let saveTimer = null;
+
+  async function loadData(){
+    try{
+      const response = await fetch(`${API_URL}/api/data`);
+      const data = await response.json();
+      budget = data.budget || 0;
+      expenses = data.expenses || [];
+      budgetInput.value = budget || '';
+    }catch(err){
+      console.error('Could not load data', err);
+    }
+    render();
+  }
+
+  function saveData(){
+    // Data is saved immediately via API calls, no need for timer
+  }
+
+  const budgetInput = document.getElementById('budgetInput');
+  const setBudgetBtn = document.getElementById('setBudgetBtn');
+  const descInput = document.getElementById('descInput');
+  const catInput = document.getElementById('catInput');
+  const amtInput = document.getElementById('amtInput');
+  const addBtn = document.getElementById('addBtn');
+  const entriesEl = document.getElementById('entries');
+  const balanceAmount = document.getElementById('balanceAmount');
+  const barFill = document.getElementById('barFill');
+  const statBudget = document.getElementById('statBudget');
+  const statSpent = document.getElementById('statSpent');
+  const countStamp = document.getElementById('countStamp');
+  const dateStamp = document.getElementById('dateStamp');
+
+  dateStamp.textContent = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  function fmt(n){
+    return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function render(){
+    const spent = expenses.reduce((s,e) => s + e.amt, 0);
+    const remaining = budget - spent;
+
+    balanceAmount.textContent = fmt(remaining);
+    balanceAmount.classList.toggle('negative', remaining < 0);
+    statBudget.textContent = fmt(budget);
+    statSpent.textContent = fmt(spent);
+
+    const pct = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+    barFill.style.width = pct + '%';
+    barFill.classList.toggle('over', spent > budget);
+
+    countStamp.textContent = expenses.length + (expenses.length === 1 ? ' entry' : ' entries');
+
+    if(expenses.length === 0){
+      entriesEl.innerHTML = '<div class="empty">No expenses logged yet — add your first one above.</div>';
+      return;
+    }
+
+    entriesEl.innerHTML = expenses.slice().reverse().map(e => `
+      <div class="entry">
+        <span class="tag">${e.cat}</span>
+        <span class="desc">${e.desc}</span>
+        <span class="amt">${fmt(e.amt)}</span>
+        <button class="del" data-id="${e.id}" title="Remove">✕</button>
+      </div>
+    `).join('');
+  }
+
+  setBudgetBtn.addEventListener('click', async () => {
+    const v = parseFloat(budgetInput.value);
+    if(isNaN(v) || v < 0) return;
+    try{
+      const response = await fetch(`${API_URL}/api/budget`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: v })
+      });
+      if(response.ok){
+        budget = v;
+        render();
+      }
+    }catch(err){
+      console.error('Could not set budget', err);
+    }
+  });
+
+  addBtn.addEventListener('click', async () => {
+    const desc = descInput.value.trim();
+    const cat = catInput.value;
+    const amt = parseFloat(amtInput.value);
+    if(!desc || isNaN(amt) || amt <= 0) return;
+    try{
+      const response = await fetch(`${API_URL}/api/expense`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ desc, cat, amt })
+      });
+      if(response.ok){
+        const result = await response.json();
+        expenses.push({ id: result.id, desc, cat, amt });
+        descInput.value = '';
+        amtInput.value = '';
+        descInput.focus();
+        render();
+      }
+    }catch(err){
+      console.error('Could not add expense', err);
+    }
+  });
+
+  entriesEl.addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('.del');
+    if(!btn) return;
+    const id = Number(btn.dataset.id);
+    try{
+      const response = await fetch(`${API_URL}/api/expense/${id}`, {
+        method: 'DELETE'
+      });
+      if(response.ok){
+        expenses = expenses.filter(e => e.id !== id);
+        render();
+      }
+    }catch(err){
+      console.error('Could not delete expense', err);
+    }
+  });
+
+  [budgetInput].forEach(el => el.addEventListener('keydown', e => { if(e.key === 'Enter') setBudgetBtn.click(); }));
+  [descInput, catInput, amtInput].forEach(el => el.addEventListener('keydown', e => { if(e.key === 'Enter') addBtn.click(); }));
+
+  document.getElementById('resetBtn').addEventListener('click', async () => {
+    if(!confirm('Clear your budget and all logged expenses? This cannot be undone.')) return;
+    try{
+      const response = await fetch(`${API_URL}/api/reset`, {
+        method: 'POST'
+      });
+      if(response.ok){
+        budget = 0;
+        expenses = [];
+        budgetInput.value = '';
+        render();
+      }
+    }catch(err){
+      console.error('Could not reset data', err);
+    }
+  });
+
+  loadData();
+</script>
+
+</body>
+</html>
