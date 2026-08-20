@@ -13,6 +13,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use(express.static(__dirname));
 
 // Database setup - Use Vercel Postgres or local PostgreSQL
