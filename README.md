@@ -1,115 +1,131 @@
-# Trip Budget Tracker
+# Vault — personal finance tracker
 
-A web-based trip budget tracker with **PostgreSQL** database backend (works on Vercel!).
+Budget tracker, expense tracker and savings tracker on a **bank-card interface**.
+Every card is its own mini tracker: its own balance, its own budget, its own
+expense log. Tap a card to flip it and see what's inside.
+
+![no build step](https://img.shields.io/badge/build-none-informational)
 
 ## Features
-- Set and track trip budgets
-- Log expenses by category
-- Real-time balance calculation
-- Persistent data storage with PostgreSQL
-- **Works on Vercel** (unlike SQLite)
 
-## Local Setup
+**Cards**
+- Add as many bank/e-wallet cards as you like — GCash, GoTyme, BDO, whatever you use
+- Each card gets a custom name, one of 10 card themes, and a balance
+- Cards render as real plastic: chip, masked number, cardholder, valid-thru, gloss, magstripe
+- Click, tap, or press <kbd>Enter</kbd>/<kbd>Space</kbd> to flip front ↔ back with a 3D animation
+- **Front** — bank name, card type badge, masked number, card furniture
+- **Back** — the live balance in that card, plus its budget or goal meter
+- Edit any card's name, theme, type, balance, budget and goal; delete cards you're done with
 
-### Prerequisites
-- Node.js 18+
-- PostgreSQL running locally (or use a cloud database)
+**Budget & expenses, per card**
+- Every card has its own budget and its own expense log — not one shared pool
+- Logging an expense subtracts from *that card's* balance immediately
+- 9 expense categories (Food & Drink, Groceries, Transport, Bills, Shopping, Health,
+  Entertainment, Transfers & Fees, Other) and 8 income categories
+- Budgets can reset monthly or run for the card's lifetime
+- Status reads **On track → Nearly spent → Over budget**, always with an icon and a label
+- Per-card spending-by-category breakdown, plus a filterable transaction history
+- "Add funds" tops a spending card back up
 
-### Steps
+**Savings cards**
+- Mark a card as **Savings** and money added counts as a *deposit* that grows the balance
+- Set an optional savings goal to get a progress bar and a **Goal reached** state
+- Withdrawals are still available when you need to dip into it
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+**Overview**
+- Hero total balance across every card
+- Total spent (with this month called out), total saved, and budget left
+- Recent activity across all cards
 
-2. **Set up database:**
-   - Create a PostgreSQL database locally:
-   ```bash
-   createdb budget_tracker
-   ```
+**Persistence & resets**
+- Everything saves to the browser automatically on every change — nothing resets between sessions
+- Open tabs stay in sync with each other
+- Export / import a JSON backup
+- Clear one card's history (restoring its balance), delete a single card, or erase everything
 
-3. **Start the server:**
-   ```bash
-   npm start
-   ```
+**Also**
+- Light and dark themes
+- 18 currencies, defaulting to PHP
+- Keyboard accessible; respects `prefers-reduced-motion`
+- Responsive from phone to desktop
 
-4. **Open in browser:**
-   Navigate to `http://localhost:3000`
+## Run it
 
-## Deployment to Vercel
+There is no build step. Either open the file directly:
 
-### Setup Vercel Postgres
+```bash
+# macOS / Linux
+open index.html
+# Windows
+start index.html
+```
 
-1. **Create a Vercel account** at [vercel.com](https://vercel.com) (if you don't have one)
+…or serve it with the bundled Express server:
 
-2. **Add a PostgreSQL database to your project:**
-   - Go to your project dashboard
-   - Click "Storage" → "Create Database" → "Postgres"
-   - Copy the `DATABASE_URL` connection string
+```bash
+npm install
+npm start
+# → http://localhost:3000
+```
 
-3. **Push to GitHub:**
-   ```bash
-   git add .
-   git commit -m "Update to PostgreSQL"
-   git push origin main
-   ```
+## Where data lives
 
-4. **Connect to Vercel:**
-   - Go to [vercel.com/new](https://vercel.com/new)
-   - Select your repository
-   - Vercel will detect environment variables needed
-   - Add `DATABASE_URL` from your Postgres setup (paste the connection string)
-   - Click "Deploy"
+Vault keeps its state in the browser's **`localStorage`**, under the key
+`vault.finance.v1`. That means:
 
-5. **Your app is live!**
-   - The database tables will be created automatically on first run
+- it works offline, with no database and no account
+- data is per-browser and per-device — it does not follow you to your phone
+- clearing site data for this origin erases it, so use **Settings → Export JSON** for backups
 
-## Database Schema
+If you later want the data on a server instead, `server.js` still exposes the
+Postgres-backed API described below; the storage layer in
+[`assets/app.js`](assets/app.js) (`load()` / `save()`) is the only thing that
+would need to change.
 
-- **budgets** - Stores budget amounts per user
-- **expenses** - Stores individual expense entries (linked to budgets)
-git push origin main
-   ```
+## Layout
 
-5. **Create a new project in Vercel:**
-   - Visit [vercel.com/new](https://vercel.com/new)
-   - Import your GitHub repository
-   - Vercel will auto-detect Node.js
-   - Add environment variable `DATABASE_URL` with your PostgreSQL connection string
-   - Click "Deploy"
+| Path | What it is |
+|---|---|
+| [`index.html`](index.html) | App shell and dialogs |
+| [`assets/app.css`](assets/app.css) | Design tokens, card plastic, meters, layout |
+| [`assets/app.js`](assets/app.js) | State, persistence, rendering, interactions |
+| [`server.js`](server.js) | Static host + the legacy trip-tracker API |
+| [`trip_budget_tracker.html`](trip_budget_tracker.html) | The previous single-budget tracker, kept at `/trip` |
 
-## API Endpoints
+## Design notes
 
-- `GET /api/data` - Get budget and expenses
-- `POST /api/budget` - Set budget amount  
-- `POST /api/expense` - Add an expense
-- `DELETE /api/expense/:id` - Delete an expense
-- `POST /api/reset` - Clear all data
+Colour and chart decisions follow a validated data-visualisation palette rather
+than taste:
 
-## Environment Variables
+- The category breakdown is a **single sequential hue**, because it encodes one
+  measure (spend) across categories — the category name is the identity channel,
+  so no categorical palette is needed and none is shipped.
+- Anything past six categories folds into one "N more categories" bar rather
+  than growing the hue count.
+- Meters are tone-on-tone: the track is a step of the fill's own hue.
+- Status states (`On track` / `Nearly spent` / `Over budget` / `Goal reached`)
+  always pair colour with an icon **and** a text label, so meaning is never
+  carried by colour alone.
+- Exactly one hero figure per view (total balance); everything else is a stat tile.
 
-### Local Development
-Add to `.env` (create if needed):
+## Legacy API (trip tracker)
+
+`server.js` still serves the older tracker at `/trip` and its API. These need a
+PostgreSQL database via `DATABASE_URL`; the card app does not, and the server
+starts fine without one.
+
+- `GET /api/data` — get budget and expenses
+- `POST /api/budget` — set budget amount
+- `POST /api/expense` — add an expense
+- `DELETE /api/expense/:id` — delete an expense
+- `POST /api/reset` — clear all data
+
 ```
 DATABASE_URL=postgresql://localhost/budget_tracker
 ```
 
-### Vercel
-Add in Vercel project settings → Environment Variables:
-```
-DATABASE_URL=<your-vercel-postgres-connection-string>
-```
+## Deploying
 
-## Troubleshooting
-
-**"Cannot connect to database"** - Make sure PostgreSQL is running and DATABASE_URL is set correctly
-
-**"Error initializing database"** - Check that your connection string is valid
-
-**Vercel deployment fails** - Ensure DATABASE_URL is added as an environment variable in Vercel project settings
-
-## Notes
-
-- Data is stored per-user (using default-user for now)
-- For multi-user support, implement authentication (JWT, OAuth, etc.)
-- PostgreSQL works reliably on Vercel (unlike SQLite which needs ephemeral filesystems)
+The app is static, so any static host works. On Vercel the repo deploys as-is
+(`vercel.json` is already present) — `DATABASE_URL` is only needed if you also
+want the `/trip` legacy tracker to work.

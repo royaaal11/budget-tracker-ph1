@@ -159,8 +159,14 @@ app.post('/api/reset', async (req, res) => {
   }
 });
 
-// Root route
+// Root route — the card-based finance app. It keeps its own state in the
+// browser's local storage, so it needs no database to run.
 app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// The original single-budget trip tracker, which still uses the API below.
+app.get('/trip', (req, res) => {
   res.sendFile(path.join(__dirname, 'trip_budget_tracker.html'));
 });
 
