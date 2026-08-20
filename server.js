@@ -47,6 +47,15 @@ async function initDatabase() {
       )
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS app_states (
+        user_id TEXT PRIMARY KEY,
+        state JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log('Database tables initialized');
   } catch (err) {
     console.error('Error initializing database:', err);
@@ -60,6 +69,52 @@ initDatabase();
 function getUserId(req) {
   return req.headers['x-user-id'] || 'default-user';
 }
+
+// Load the card app state stored for this browser identity.
+app.get('/api/state', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT state FROM app_states WHERE user_id = $1',
+      [getUserId(req)]
+    );
+    res.json({ state: result.rows[0]?.state || null });
+  } catch (err) {
+    console.error('Error fetching app state:', err);
+    res.status(500).json({ error: 'Could not load app state' });
+  }
+});
+
+// Save the complete card app state as one atomic document.
+app.put('/api/state', async (req, res) => {
+  const { state } = req.body || {};
+  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    return res.status(400).json({ error: 'Invalid app state' });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO app_states (user_id, state, updated_at)
+       VALUES ($1, $2::jsonb, CURRENT_TIMESTAMP)
+       ON CONFLICT (user_id) DO UPDATE
+       SET state = EXCLUDED.state, updated_at = CURRENT_TIMESTAMP`,
+      [getUserId(req), JSON.stringify(state)]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error saving app state:', err);
+    res.status(500).json({ error: 'Could not save app state' });
+  }
+});
+
+app.delete('/api/state', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM app_states WHERE user_id = $1', [getUserId(req)]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting app state:', err);
+    res.status(500).json({ error: 'Could not delete app state' });
+  }
+});
 
 // API Routes
 
@@ -160,8 +215,7 @@ app.post('/api/reset', async (req, res) => {
   }
 });
 
-// Root route — the card-based finance app. It keeps its own state in the
-// browser's local storage, so it needs no database to run.
+// Root route — the card-based finance app.
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -171,6 +225,10 @@ app.get('/trip', (req, res) => {
   res.sendFile(path.join(__dirname, 'trip_budget_tracker.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+export default app;
+
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}

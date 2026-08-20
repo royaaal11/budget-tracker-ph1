@@ -3,6 +3,8 @@
    ========================================================================== */
 
 const STORE_KEY = 'vault.finance.v1';
+const USER_KEY = 'vault.user.id';
+let saveQueue = Promise.resolve();
 
 /* ------------------------------------------------------------------ themes */
 
@@ -247,27 +249,49 @@ function normalise(raw) {
   return out;
 }
 
-function load() {
+function userId() {
+  let id = localStorage.getItem(USER_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(USER_KEY, id);
+  }
+  return id;
+}
+
+async function load() {
   try {
-    const raw = localStorage.getItem(STORE_KEY);
-    S = normalise(raw ? JSON.parse(raw) : null);
+    const response = await fetch('/api/state', { headers: { 'x-user-id': userId() } });
+    if (!response.ok) throw new Error(`Server returned ${response.status}`);
+    const payload = await response.json();
+    if (payload.state) {
+      S = normalise(payload.state);
+      return;
+    }
+
+    const localRaw = localStorage.getItem(STORE_KEY);
+    S = normalise(localRaw ? JSON.parse(localRaw) : null);
+    await save();
+    localStorage.removeItem(STORE_KEY);
   } catch (err) {
-    console.warn('Could not read saved data, starting fresh.', err);
+    console.warn('Could not load saved data from the server.', err);
     S = DEFAULTS();
+    toast('Database unavailable — changes may not be saved.', 'bad');
   }
 }
 
-let saveWarned = false;
 function save() {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(S));
-  } catch (err) {
-    if (!saveWarned) {
-      saveWarned = true;
-      toast('Could not save — this browser is blocking local storage.', 'bad');
-      console.error(err);
-    }
-  }
+  saveQueue = saveQueue.then(async () => {
+    const response = await fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': userId() },
+      body: JSON.stringify({ state: S }),
+    });
+    if (!response.ok) throw new Error(`Server returned ${response.status}`);
+  }).catch(err => {
+    console.error('Could not save data to the server.', err);
+    toast('Could not save changes to the database.', 'bad');
+  });
+  return saveQueue;
 }
 
 const randDigits = n => Array.from({ length: n }, () => Math.floor(Math.random() * 10)).join('');
@@ -1297,17 +1321,14 @@ function wire() {
   });
 
   /* another tab edited the same store */
-  window.addEventListener('storage', ev => {
-    if (ev.key !== STORE_KEY) return;
-    load();
-    applyAppTheme();
-    refreshCurrencyMarks();
-    render();
-  });
 }
 
 /* -------------------------------------------------------------- boot */
 
-load();
-wire();
-render();
+async function boot() {
+  await load();
+  wire();
+  render();
+}
+
+boot();

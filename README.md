@@ -38,8 +38,8 @@ expense log. Tap a card to flip it and see what's inside.
 - Recent activity across all cards
 
 **Persistence & resets**
-- Everything saves to the browser automatically on every change — nothing resets between sessions
-- Open tabs stay in sync with each other
+- App state is stored in PostgreSQL automatically on every change
+- A browser-specific ID keeps local users' data separate (authentication should be added for multi-user production apps)
 - Export / import a JSON backup
 - Clear one card's history (restoring its balance), delete a single card, or erase everything
 
@@ -67,6 +67,20 @@ npm install
 npm start
 # → http://localhost:3000
 ```
+
+## Database setup
+
+Set `DATABASE_URL` to a PostgreSQL connection string before starting the server:
+
+```bash
+# PowerShell
+$env:DATABASE_URL = "postgresql://USER:PASSWORD@HOST:5432/DATABASE"
+npm start
+```
+
+The server creates the `app_states` table automatically. On Vercel, add the same
+`DATABASE_URL` value under Project Settings → Environment Variables, then redeploy.
+Without it, the app can load but database reads and writes will fail.
 
 ## Where data lives
 
